@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คำนวณราคาขายผลไม้</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 450px; margin: 0 auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin-bottom: 20px; font-size: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+        input { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
+        input:focus { outline: none; border-color: #4CAF50; }
+        button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 20px 0; }
+        button:hover { background: #45a049; }
+        .result { background: #f8f9fa; border-radius: 5px; padding: 15px; margin-top: 20px; display: none; }
+        .result-item { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .result-label { color: #555; }
+        .result-value { font-weight: bold; color: #333; }
+        .highlight { background: #e8f5e9; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .loss-info { background: #fff3e0; padding: 10px; border-radius: 5px; margin-top: 10px; border-left: 4px solid #ff9800; }
+        .tab-btn { 
+            flex: 1; padding: 10px; background: #f8f9fa; border: none; border-bottom: 2px solid transparent; 
+            cursor: pointer; font-size: 14px; color: #666; 
+        }
+        .tab-btn.active { background: white; border-bottom-color: #4CAF50; color: #4CAF50; font-weight: bold; }
+        .tab-btn:hover { background: #f0f0f0; }
+        .tab-content { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .help-text { font-size: 12px; color: #888; margin-top: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍎 คำนวณราคาขายผลไม้</h1>
+        
+        <!-- Tab Navigation -->
+        <div style="display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+            <button class="tab-btn active" onclick="switchTab('normal')">คำนวณปกติ</button>
+            <button class="tab-btn" onclick="switchTab('reverse')">คำนวณย้อนกลับ</button>
+            <button class="tab-btn" onclick="switchTab('minCost')">ต้นทุนขั้นต่ำ</button>
+        </div>
+        
+        <!-- Normal Calculation Tab -->
+        <div id="normalTab" class="tab-content">
+            <div class="input-group">
+                <label>ราคาต้นทุน (บาท/กก.)</label>
+                <input type="number" id="cost" step="0.01" placeholder="เช่น 50">
+                <div class="help-text">ราคาที่ซื้อมา (แบบมีเปลือก)</div>
+            </div>
+            
+            <div class="input-group">
+                <label>จำนวนกิโลกรัม ที่ซื้อมา (มีเปลือก)</label>
+                <input type="number" id="originalWeight" step="0.1" placeholder="เช่น 10">
+                <div class="help-text">น้ำหนักรวมที่ซื้อมา (ยังไม่ปอกเปลือก)</div>
+            </div>
+            
+            <div class="input-group">
+                <label>จำนวนกิโลกรัม หลังจากปอกเปลือก</label>
+                <input type="number" id="weight" step="0.1" placeholder="เช่น 8">
+                <div class="help-text">น้ำหนักที่เหลือหลังปอกเปลือกแล้ว</div>
+            </div>
+            
+            <div class="input-group">
+                <label>จำนวนถุง (รองรับทศนิยม)</label>
+                <input type="number" id="bags" step="0.1" placeholder="เช่น 20 หรือ 20.5">
+            </div>
+            
+            <div class="input-group">
+                <label>กำไรที่ต้องการ (บาท)</label>
+                <input type="number" id="profit" step="0.01" placeholder="เช่น 200">
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; color: #666;">หรือ</div>
+            
+            <div class="input-group">
+                <label>ราคาขายต่อถุงที่ต้องการ (บาท)</label>
+                <input type="number" id="targetPrice" step="0.01" placeholder="เช่น 20">
+            </div>
+            
+            <button onclick="calculate()">คำนวณ</button>
+        </div>
+        
+        <!-- Reverse Calculation Tab -->
+        <div id="reverseTab" class="tab-content" style="display: none;">
+            <div class="input-group">
+                <label>ราคาต้นทุน (บาท/กก.)</label>
+                <input type="number" id="costRev" step="0.01" placeholder="เช่น 50">
+                <div class="help-text">ราคาที่ซื้อมา (แบบมีเปลือก)</div>
+            </div>
+            
+            <div class="input-group">
+                <label>จำนวนกิโลกรัม ที่ซื้อมา (มีเปลือก)</label>
+                <input type="number" id="originalWeightRev" step="0.1" placeholder="เช่น 10">
+                <div class="help-text">น้ำหนักรวมที่ซื้อมา (ยังไม่ปอกเปลือก)</div>
+            </div>
+            
+            <div class="input-group">
+                <label>จำนวนกิโลกรัม หลังจากปอกเปลือก</label>
+                <input type="number" id="weightRev" step="0.1" placeholder="เช่น 8">
+                <div class="help-text">น้ำหนักที่เหลือหลังปอกเปลือกแล้ว</div>
+            </div>
+            
+            <div class="input-group">
+                <label>น้ำหนักต่อถุงที่ต้องการ (กรัม)</label>
+                <input type="number" id="targetWeight" placeholder="เช่น 500">
+            </div>
+            
+            <div class="input-group">
+                <label>เปอร์เซ็นต์กำไรที่ต้องการ (%)</label>
+                <input type="number" id="targetPercent" step="0.1" placeholder="เช่น 25">
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; color: #666;">หรือ</div>
+            
+            <div class="input-group">
+                <label>กำไรรวมที่ต้องการ (บาท)</label>
+                <input type="number" id="targetProfitRev" step="0.01" placeholder="เช่น 200">
+            </div>
+            
+            <button onclick="calculateReverse()">คำนวณย้อนกลับ</button>
+        </div>
+        
+        <!-- Minimum Cost Calculation Tab -->
+        <div id="minCostTab" class="tab-content" style="display: none;">
+            <div class="input-group">
+                <label>ราคาขายต่อถุงที่ต้องการ (บาท)</label>
+                <input type="number" id="targetSellPrice" step="0.01" placeholder="เช่น 25">
+                <div class="help-text">ราคาที่คุณอยากขายในตลาด</div>
+            </div>
+            
+            <div class="input-group">
+                <label>จำนวนกิโลกรัม ที่จะซื้อ (มีเปลือก)</label>
+                <input type="number" id="plannedWeight" step="0.1" placeholder="เช่น 10">
+                <div class="help-text">น้ำหนักที่วางแผนจะซื้อ</div>
+            </div>
+            
+            <div class="input-group">
+                <label>เปอร์เซ็นต์การสูญเสีย (เปลือก+เสีย) %</label>
+                <input type="number" id="lossPercentInput" step="0.1" placeholder="เช่น 20" value="20">
+                <div class="help-text">ประมาณการเปลือก+ผลไม้เสีย (ปกติ 15-25%)</div>
+            </div>
+            
+            <div class="input-group">
+                <label>น้ำหนักต่อถุง (กรัม)</label>
+                <input type="number" id="bagWeightMin" placeholder="เช่น 500">
+                <div class="help-text">น้ำหนักผลไม้ต่อถุงที่จะขาย</div>
+            </div>
+            
+            <div class="input-group">
+                <label>กำไรขั้นต่ำที่ต้องการ (บาท)</label>
+                <input type="number" id="minProfitRequired" step="0.01" placeholder="เช่น 150" value="0">
+                <div class="help-text">กำไรขั้นต่ำที่ต้องการได้ (ใส่ 0 ถ้าแค่ไม่ขาดทุน)</div>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; color: #666;">หรือ</div>
+            
+            <div class="input-group">
+                <label>เปอร์เซ็นต์กำไรขั้นต่ำ (%)</label>
+                <input type="number" id="minProfitPercent" step="0.1" placeholder="เช่น 15">
+                <div class="help-text">เปอร์เซ็นต์กำไรขั้นต่ำที่ยอมรับได้</div>
+            </div>
+            
+            <div class="input-group">
+                <label>ค่าใช้จ่ายเพิ่มเติม (บาท)</label>
+                <input type="number" id="additionalCost" step="0.01" placeholder="เช่น 50" value="0">
+                <div class="help-text">ค่าแรง ค่าถุง ค่าขนส่ง ฯลฯ</div>
+            </div>
+            
+            <button onclick="calculateMinCost()">คำนวณต้นทุนขั้นต่ำ</button>
+        </div>
+        
+        <div id="result" class="result">
+            <div class="result-item">
+                <span class="result-label">ต้นทุนรวม (ที่ซื้อมา):</span>
+                <span id="totalCost" class="result-value"></span>
+            </div>
+            
+            <div class="loss-info" id="lossInfo" style="display: none;">
+                <div class="result-item">
+                    <span class="result-label">น้ำหนักที่สูญเสีย (เปลือก):</span>
+                    <span id="weightLoss" class="result-value" style="color: #ff9800;"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">ต้นทุนที่สูญเสีย:</span>
+                    <span id="costLoss" class="result-value" style="color: #ff9800;"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">เปอร์เซ็นต์การสูญเสีย:</span>
+                    <span id="lossPercent" class="result-value" style="color: #ff9800;"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">ต้นทุนต่อกก. (หลังปอกเปลือก):</span>
+                    <span id="actualCostPerKg" class="result-value" style="color: #ff9800;"></span>
+                </div>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">รายได้ที่ต้องการ:</span>
+                <span id="targetRevenue" class="result-value"></span>
+            </div>
+            <div class="highlight">
+                <div class="result-item">
+                    <span class="result-label">ราคาขายต่อถุง:</span>
+                    <span id="pricePerBag" class="result-value"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">น้ำหนักต่อถุง:</span>
+                    <span id="weightPerBag" class="result-value"></span>
+                </div>
+            </div>
+            <div class="result-item" style="margin-top: 10px;">
+                <span class="result-label">กำไรรวม:</span>
+                <span id="totalProfit" class="result-value"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">กำไรต่อถุง:</span>
+                <span id="profitPerBag" class="result-value"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">เปอร์เซ็นต์กำไร:</span>
+                <span id="profitPercent" class="result-value"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            const normalTab = document.getElementById('normalTab');
+            const reverseTab = document.getElementById('reverseTab');
+            const minCostTab = document.getElementById('minCostTab');
+            const buttons = document.querySelectorAll('.tab-btn');
+            
+            // ซ่อน tab ทั้งหมด
+            normalTab.style.display = 'none';
+            reverseTab.style.display = 'none';
+            minCostTab.style.display = 'none';
+            
+            // ล้าง active class ทั้งหมด
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            if (tab === 'normal') {
+                normalTab.style.display = 'block';
+                buttons[0].classList.add('active');
+            } else if (tab === 'reverse') {
+                reverseTab.style.display = 'block';
+                buttons[1].classList.add('active');
+            } else if (tab === 'minCost') {
+                minCostTab.style.display = 'block';
+                buttons[2].classList.add('active');
+            }
+            
+            document.getElementById('result').style.display = 'none';
+        }
+        
+        function calculateLossInfo(originalWeight, weight, cost) {
+            const weightLoss = originalWeight - weight;
+            const costLoss = weightLoss * cost;
+            const lossPercent = (weightLoss / originalWeight) * 100;
+            const actualCostPerKg = (originalWeight * cost) / weight;
+            
+            document.getElementById('weightLoss').textContent = weightLoss.toFixed(2) + ' กก.';
+            document.getElementById('costLoss').textContent = costLoss.toFixed(2) + ' บาท';
+            document.getElementById('lossPercent').textContent = lossPercent.toFixed(1) + '%';
+            document.getElementById('actualCostPerKg').textContent = actualCostPerKg.toFixed(2) + ' บาท/กก.';
+            
+            return { weightLoss, costLoss, lossPercent, actualCostPerKg };
+        }
+        
+        function calculateReverse() {
+            const cost = parseFloat(document.getElementById('costRev').value);
+            const originalWeight = parseFloat(document.getElementById('originalWeightRev').value);
+            const weight = parseFloat(document.getElementById('weightRev').value);
+            const targetWeight = parseFloat(document.getElementById('targetWeight').value);
+            const targetPercent = parseFloat(document.getElementById('targetPercent').value);
+            const targetProfitRev = parseFloat(document.getElementById('targetProfitRev').value) || 0;
+            
+            if (!cost || !originalWeight || !weight || !targetWeight) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+            
+            if (originalWeight < weight) {
+                alert('น้ำหนักที่ซื้อมาต้องมากกว่าน้ำหนักหลังปอกเปลือก');
+                return;
+            }
+            
+            if (!targetPercent && !targetProfitRev) {
+                alert('กรุณากรอกเปอร์เซ็นต์กำไรที่ต้องการ หรือ กำไรรวมที่ต้องการ');
+                return;
+            }
+            
+            if (targetPercent && targetProfitRev) {
+                alert('กรุณาเลือกกรอกเพียงอย่างใดอย่างหนึ่ง (เปอร์เซ็นต์กำไร หรือ กำไรรวม)');
+                return;
+            }
+            
+            const totalCost = cost * originalWeight; // ใช้น้ำหนักต้นฉบับ
+            const bags = (weight * 1000) / targetWeight;
+            const actualWeightPerBag = (weight * 1000) / bags;
+            
+            // คำนวณข้อมูลการสูญเสีย
+            calculateLossInfo(originalWeight, weight, cost);
+            document.getElementById('lossInfo').style.display = 'block';
+            
+            let totalProfit;
+            if (targetPercent) {
+                totalProfit = (totalCost * targetPercent) / 100;
+            } else {
+                totalProfit = targetProfitRev;
+            }
+            
+            const targetRevenue = totalCost + totalProfit;
+            const pricePerBag = targetRevenue / bags;
+            const profitPerBag = totalProfit / bags;
+            const profitPercent = (totalProfit / totalCost) * 100;
+            
+            document.getElementById('totalCost').textContent = totalCost.toFixed(2) + ' บาท';
+            document.getElementById('targetRevenue').textContent = targetRevenue.toFixed(2) + ' บาท';
+            document.getElementById('pricePerBag').textContent = pricePerBag.toFixed(2) + ' บาท';
+            document.getElementById('weightPerBag').textContent = actualWeightPerBag.toFixed(0) + ' กรัม';
+            document.getElementById('totalProfit').textContent = totalProfit.toFixed(2) + ' บาท';
+            document.getElementById('profitPerBag').textContent = profitPerBag.toFixed(2) + ' บาท';
+            document.getElementById('profitPercent').textContent = profitPercent.toFixed(1) + '%';
+            
+            // แสดงจำนวนถุง
+            const bagsInfo = document.getElementById('bagsInfo') || document.createElement('div');
+            bagsInfo.id = 'bagsInfo';
+            bagsInfo.className = 'result-item';
+            bagsInfo.innerHTML = `<span class="result-label">จำนวนถุงที่ได้:</span><span class="result-value" style="color: #2196F3; font-weight: bold;">${bags.toFixed(1)} ถุง</span>`;
+            
+            const resultDiv = document.getElementById('result');
+            if (!document.getElementById('bagsInfo')) {
+                resultDiv.insertBefore(bagsInfo, resultDiv.firstChild);
+            }
+            
+            // จัดสีผลลัพธ์
+            if (totalProfit < 0) {
+                document.getElementById('totalProfit').style.color = 'red';
+                document.getElementById('profitPerBag').style.color = 'red';
+                document.getElementById('profitPercent').style.color = 'red';
+            } else {
+                document.getElementById('totalProfit').style.color = '#4CAF50';
+                document.getElementById('profitPerBag').style.color = '#4CAF50';
+                document.getElementById('profitPercent').style.color = '#4CAF50';
+            }
+            
+            document.getElementById('result').style.display = 'block';
+        }
+        
+        function calculateMinCost() {
+            const targetSellPrice = parseFloat(document.getElementById('targetSellPrice').value);
+            const plannedWeight = parseFloat(document.getElementById('plannedWeight').value);
+            const lossPercent = parseFloat(document.getElementById('lossPercentInput').value);
+            const bagWeight = parseFloat(document.getElementById('bagWeightMin').value);
+            const minProfitRequired = parseFloat(document.getElementById('minProfitRequired').value) || 0;
+            const minProfitPercent = parseFloat(document.getElementById('minProfitPercent').value);
+            const additionalCost = parseFloat(document.getElementById('additionalCost').value) || 0;
+            
+            if (!targetSellPrice || !plannedWeight || !lossPercent || !bagWeight) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน (ยกเว้นค่าใช้จ่ายเพิ่มเติม)');
+                return;
+            }
+            
+            if (minProfitRequired && minProfitPercent) {
+                alert('กรุณาเลือกกรอกเพียงอย่างใดอย่างหนึ่ง (กำไรขั้นต่ำ หรือ เปอร์เซ็นต์กำไร)');
+                return;
+            }
+            
+            if (lossPercent >= 100) {
+                alert('เปอร์เซ็นต์การสูญเสียต้องน้อยกว่า 100%');
+                return;
+            }
+            
+            // คำนวณน้ำหนักที่เหลือหลังสูญเสีย
+            const remainingWeight = plannedWeight * (100 - lossPercent) / 100;
+            
+            // คำนวณจำนวนถุงที่ได้
+            const totalBags = (remainingWeight * 1000) / bagWeight;
+            
+            // คำนวณรายได้รวม
+            const totalRevenue = targetSellPrice * totalBags;
+            
+            // คำนวณต้นทุนสูงสุดที่ยอมรับได้
+            let maxAcceptableCost;
+            
+            if (minProfitPercent) {
+                // ถ้าใช้เปอร์เซ็นต์กำไร: Revenue = Cost * (1 + Profit%)
+                // Cost = Revenue / (1 + Profit%)
+                maxAcceptableCost = (totalRevenue - additionalCost) / (1 + minProfitPercent / 100);
+            } else {
+                // ถ้าใช้กำไรขั้นต่ำ: Cost = Revenue - Profit - Additional Cost
+                maxAcceptableCost = totalRevenue - minProfitRequired - additionalCost;
+            }
+            
+            // คำนวณราคาต่อกิโลกรัมสูงสุด
+            const maxCostPerKg = maxAcceptableCost / plannedWeight;
+            
+            // คำนวณค่าต่างๆ สำหรับแสดงผล
+            const actualProfit = totalRevenue - maxAcceptableCost - additionalCost;
+            const actualProfitPercent = (actualProfit / maxAcceptableCost) * 100;
+            const weightLoss = plannedWeight - remainingWeight;
+            const actualCostPerKgAfterLoss = maxAcceptableCost / remainingWeight;
+            
+            // แสดงผลลัพธ์
+            document.getElementById('totalCost').textContent = maxAcceptableCost.toFixed(2) + ' บาท';
+            document.getElementById('targetRevenue').textContent = totalRevenue.toFixed(2) + ' บาท';
+            document.getElementById('pricePerBag').textContent = targetSellPrice.toFixed(2) + ' บาท';
+            document.getElementById('weightPerBag').textContent = bagWeight.toFixed(0) + ' กรัม';
+            document.getElementById('totalProfit').textContent = actualProfit.toFixed(2) + ' บาท';
+            document.getElementById('profitPerBag').textContent = (actualProfit / totalBags).toFixed(2) + ' บาท';
+            document.getElementById('profitPercent').textContent = actualProfitPercent.toFixed(1) + '%';
+            
+            // แสดงข้อมูลการสูญเสีย
+            document.getElementById('weightLoss').textContent = weightLoss.toFixed(2) + ' กก.';
+            document.getElementById('costLoss').textContent = (weightLoss * maxCostPerKg).toFixed(2) + ' บาท';
+            document.getElementById('lossPercent').textContent = lossPercent.toFixed(1) + '%';
+            document.getElementById('actualCostPerKg').textContent = actualCostPerKgAfterLoss.toFixed(2) + ' บาท/กก.';
+            document.getElementById('lossInfo').style.display = 'block';
+            
+            // แสดงข้อมูลพิเศษสำหรับ tab ต้นทุนขั้นต่ำ
+            const minCostInfo = document.getElementById('minCostInfo') || document.createElement('div');
+            minCostInfo.id = 'minCostInfo';
+            minCostInfo.className = 'highlight';
+            minCostInfo.style.background = '#e3f2fd';
+            minCostInfo.style.borderLeft = '4px solid #2196F3';
+            minCostInfo.innerHTML = `
+                <div style="text-align: center; font-weight: bold; color: #1976D2; margin-bottom: 10px;">
+                    💡 คำแนะนำการซื้อ
+                </div>
+                <div class="result-item">
+                    <span class="result-label">ซื้อในราคาไม่เกิน:</span>
+                    <span class="result-value" style="color: #1976D2; font-size: 18px; font-weight: bold;">${maxCostPerKg.toFixed(2)} บาท/กก.</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">จำนวนถุงที่ได้:</span>
+                    <span class="result-value" style="color: #1976D2;">${totalBags.toFixed(1)} ถุง</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">น้ำหนักที่เหลือ:</span>
+                    <span class="result-value" style="color: #1976D2;">${remainingWeight.toFixed(2)} กก.</span>
+                </div>
+                ${additionalCost > 0 ? `
+                <div class="result-item">
+                    <span class="result-label">ค่าใช้จ่ายเพิ่มเติม:</span>
+                    <span class="result-value" style="color: #ff9800;">${additionalCost.toFixed(2)} บาท</span>
+                </div>` : ''}
+            `;
+            
+            const resultDiv = document.getElementById('result');
+            if (!document.getElementById('minCostInfo')) {
+                resultDiv.insertBefore(minCostInfo, resultDiv.firstChild);
+            }
+            
+            // ซ่อนข้อมูลจำนวนถุงปกติ
+            const bagsInfo = document.getElementById('bagsInfo');
+            if (bagsInfo) bagsInfo.style.display = 'none';
+            
+            // จัดสีผลลัพธ์
+            if (maxCostPerKg <= 0) {
+                alert('ไม่สามารถทำกำไรได้ด้วยราคาขายนี้ กรุณาลดราคาขาย หรือ ลดกำไรที่ต้องการ');
+                return;
+            }
+            
+            document.getElementById('totalProfit').style.color = '#4CAF50';
+            document.getElementById('profitPerBag').style.color = '#4CAF50';
+            document.getElementById('profitPercent').style.color = '#4CAF50';
+            
+            document.getElementById('result').style.display = 'block';
+        }
+        
+        function calculate() {
+            const cost = parseFloat(document.getElementById('cost').value);
+            const originalWeight = parseFloat(document.getElementById('originalWeight').value);
+            const weight = parseFloat(document.getElementById('weight').value);
+            const bags = parseFloat(document.getElementById('bags').value);
+            const profit = parseFloat(document.getElementById('profit').value) || 0;
+            const targetPrice = parseFloat(document.getElementById('targetPrice').value);
+            
+            if (!cost || !originalWeight || !weight || !bags) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+            
+            if (originalWeight < weight) {
+                alert('น้ำหนักที่ซื้อมาต้องมากกว่าน้ำหนักหลังปอกเปลือก');
+                return;
+            }
+            
+            if (!profit && !targetPrice) {
+                alert('กรุณากรอกกำไรที่ต้องการ หรือ ราคาขายต่อถุงที่ต้องการ');
+                return;
+            }
+            
+            if (profit && targetPrice) {
+                alert('กรุณาเลือกกรอกเพียงอย่างใดอย่างหนึ่ง (กำไรที่ต้องการ หรือ ราคาขายต่อถุง)');
+                return;
+            }
+            
+            const totalCost = cost * originalWeight; // ใช้น้ำหนักต้นฉบับ
+            
+            // คำนวณข้อมูลการสูญเสีย
+            calculateLossInfo(originalWeight, weight, cost);
+            document.getElementById('lossInfo').style.display = 'block';
+            
+            let targetRevenue, pricePerBag, totalProfit;
+            
+            if (targetPrice) {
+                pricePerBag = targetPrice;
+                targetRevenue = targetPrice * bags;
+                totalProfit = targetRevenue - totalCost;
+            } else {
+                totalProfit = profit;
+                targetRevenue = totalCost + profit;
+                pricePerBag = targetRevenue / bags;
+            }
+            
+            const weightPerBag = (weight * 1000) / bags;
+            const profitPerBag = totalProfit / bags;
+            const profitPercent = (totalProfit / totalCost) * 100;
+            
+            document.getElementById('totalCost').textContent = totalCost.toFixed(2) + ' บาท';
+            document.getElementById('targetRevenue').textContent = targetRevenue.toFixed(2) + ' บาท';
+            document.getElementById('pricePerBag').textContent = pricePerBag.toFixed(2) + ' บาท';
+            document.getElementById('weightPerBag').textContent = weightPerBag.toFixed(0) + ' กรัม';
+            document.getElementById('totalProfit').textContent = totalProfit.toFixed(2) + ' บาท';
+            document.getElementById('profitPerBag').textContent = profitPerBag.toFixed(2) + ' บาท';
+            document.getElementById('profitPercent').textContent = profitPercent.toFixed(1) + '%';
+            
+            // ซ่อนข้อมูลจำนวนถุงในโหมดปกติ
+            const bagsInfo = document.getElementById('bagsInfo');
+            if (bagsInfo) bagsInfo.style.display = 'none';
+            
+            // จัดสีผลลัพธ์
+            if (totalProfit < 0) {
+                document.getElementById('totalProfit').style.color = 'red';
+                document.getElementById('profitPerBag').style.color = 'red';
+                document.getElementById('profitPercent').style.color = 'red';
+            } else {
+                document.getElementById('totalProfit').style.color = '#4CAF50';
+                document.getElementById('profitPerBag').style.color = '#4CAF50';
+                document.getElementById('profitPercent').style.color = '#4CAF50';
+            }
+            
+            document.getElementById('result').style.display = 'block';
+        }
+        
+        // คำนวณอัตโนมัติเมื่อกด Enter และล้างข้อมูล
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    if (this.id.includes('Rev') || this.id.includes('target')) {
+                        calculateReverse();
+                    } else if (this.id.includes('Min') || this.id.includes('Sell') || this.id.includes('planned') || this.id.includes('loss') || this.id.includes('bag') || this.id.includes('additional')) {
+                        calculateMinCost();
+                    } else {
+                        calculate();
+                    }
+                }
+            });
+            
+            input.addEventListener('input', function() {
+                if (this.id === 'profit' && this.value) {
+                    document.getElementById('targetPrice').value = '';
+                } else if (this.id === 'targetPrice' && this.value) {
+                    document.getElementById('profit').value = '';
+                } else if (this.id === 'targetPercent' && this.value) {
+                    document.getElementById('targetProfitRev').value = '';
+                } else if (this.id === 'targetProfitRev' && this.value) {
+                    document.getElementById('targetPercent').value = '';
+                } else if (this.id === 'minProfitRequired' && this.value) {
+                    document.getElementById('minProfitPercent').value = '';
+                } else if (this.id === 'minProfitPercent' && this.value) {
+                    document.getElementById('minProfitRequired').value = '';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
